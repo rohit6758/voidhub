@@ -10,7 +10,12 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = 'titan-epic-key-2026'
 
 # DATABASE CONFIG
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+mysqlconnector://root:rohit1234@localhost/arizen_db'
+# Automatically switch to a cloud database if hosted, otherwise use localhost
+db_url = os.environ.get('DATABASE_URL', 'mysql+mysqlconnector://root:rohit1234@localhost/arizen_db')
+if db_url.startswith("postgres://"):
+    db_url = db_url.replace("postgres://", "postgresql://", 1)
+app.config['SQLALCHEMY_DATABASE_URI'] = db_url
+
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = 'static'
 
@@ -32,18 +37,25 @@ class Follow(db.Model):
     followed_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
 
+def get_avatar_url(user):
+    if user.avatar_file and user.avatar_file != 'default_avatar.png':
+        return url_for('static', filename='profiles/' + user.avatar_file)
+    return f"https://api.dicebear.com/7.x/shapes/svg?seed={user.username}"
+
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(100), unique=True, nullable=False)
+    display_name = db.Column(db.String(100), nullable=True)
     email = db.Column(db.String(100), unique=True, nullable=False)
     password = db.Column(db.String(200), nullable=False)
     is_premium = db.Column(db.Boolean, default=False)
+    premium_type = db.Column(db.String(20), default='none') # 'none', 'buyer', 'seller'
     level = db.Column(db.Integer, default=1)
     
     # Profile Data
+    avatar_file = db.Column(db.String(100), default='default_avatar.png')
     bio = db.Column(db.String(500), default="Certified Void Hub Developer.")
-    discord_id = db.Column(db.String(100), default="Unknown#0000")
-    insta_id = db.Column(db.String(100), default="@void_hub")
+    void_id = db.Column(db.String(100), unique=True, default=lambda: f"VOID-{os.urandom(2).hex().upper()}")
     
     # Relationships
     posts = db.relationship('Post', backref='author', lazy=True)
@@ -126,9 +138,9 @@ def get_posts():
             'desc': p.desc,
             'reviews': review_list,
             'author_bio': p.author.bio,
-            'author_discord': p.author.discord_id,
-            'author_insta': p.author.insta_id,
-            'author_level': p.author.level
+            'author_level': p.author.level,
+            'author_is_premium': p.author.is_premium,
+            'author_avatar': get_avatar_url(p.author)
         })
     return jsonify(data)
 
@@ -137,12 +149,6 @@ def login():
     email = request.form.get('email')
     password = request.form.get('password')
     
-    if password == "0000": 
-        user = User.query.filter((User.email == email) | (User.username == email)).first()
-        if user:
-            login_user(user)
-            return redirect(url_for('home'))
-
     user = User.query.filter((User.email == email) | (User.username == email)).first()
     if user and check_password_hash(user.password, password):
         login_user(user)
@@ -153,6 +159,7 @@ def signup():
     if not User.query.filter_by(email=request.form.get('email')).first():
         user = User(
             username=request.form.get('username'), 
+            display_name=request.form.get('username'),
             email=request.form.get('email'), 
             password=generate_password_hash(request.form.get('password'), method='pbkdf2:sha256')
         )
@@ -171,29 +178,51 @@ def logout():
 def get_user_profile(username):
     user = User.query.filter_by(username=username).first()
     if not user: return jsonify({'error': 'User not found'}), 404
-    
-    total_sales = sum([p.sold_count for p in user.posts])
-    follower_count = user.followers.count()
+
+    followers_list = [{'username': f.follower.username, 'avatar': get_avatar_url(f.follower), 'premium': f.follower.premium_type} for f in user.followers]
+    following_list = [{'username': f.followed.username, 'avatar': get_avatar_url(f.followed), 'premium': f.followed.premium_type} for f in user.following]
     
     return jsonify({
-        'bio': user.bio or "No bio set.",
-        'discord': user.discord_id or "Not Linked",
-        'insta': user.insta_id or "Not Linked",
+        'display_name': user.display_name or user.username,
+        'bio': user.bio,
+        'void_id': user.void_id,
         'level': user.level,
-        'sales': total_sales,
-        'post_count': len(user.posts),
-        'followers': follower_count
+        'is_premium': user.is_premium,
+        'premium_type': user.premium_type,
+        'avatar': get_avatar_url(user),
+        'sales': sum([p.sold_count for p in user.posts]),
+        'followers': followers_list,
+        'following': following_list
     })
 
 @app.route('/api/profile/update', methods=['POST'])
 @login_required
 def update_profile():
-    data = request.json
+    data = request.form
+    
+    new_display_name = data.get('display_name')
+    new_username = data.get('username')
+    
+    if new_username and new_username != current_user.username:
+        if User.query.filter_by(username=new_username).first():
+            return jsonify({'status': 'error', 'message': 'Codename already taken.'})
+        current_user.username = new_username
+        
+    if not os.path.exists(os.path.join(app.config['UPLOAD_FOLDER'], 'profiles')):
+        os.makedirs(os.path.join(app.config['UPLOAD_FOLDER'], 'profiles'))
+
+    if 'avatar' in request.files:
+        avatar = request.files['avatar']
+        if avatar.filename:
+            filename = secure_filename(f"avatar_{current_user.id}_{avatar.filename}")
+            avatar.save(os.path.join(app.config['UPLOAD_FOLDER'], 'profiles', filename))
+            current_user.avatar_file = filename
+
+    current_user.display_name = new_display_name or current_user.display_name
     current_user.bio = data.get('bio', current_user.bio)
-    current_user.discord_id = data.get('discord', current_user.discord_id)
-    current_user.insta_id = data.get('insta', current_user.insta_id)
     db.session.commit()
-    return jsonify({'status': 'success'})
+    
+    return jsonify({'status': 'success', 'new_username': current_user.username})
 
 @app.route('/api/contacts')
 @login_required
@@ -206,7 +235,7 @@ def get_contacts():
     
     return jsonify([{
         'username': u.username,
-        'avatar': f"https://api.dicebear.com/7.x/shapes/svg?seed={u.username}",
+        'avatar': get_avatar_url(u),
         'status': 'Online'
     } for u in contacts])
 
@@ -258,7 +287,7 @@ def get_chat_history(username):
         ((Message.sender_id == current_user.id) & (Message.receiver_id == other.id)) |
         ((Message.sender_id == other.id) & (Message.receiver_id == current_user.id))
     ).order_by(Message.timestamp.asc()).all()
-    return jsonify([{'sender': m.sender.username, 'content': m.content, 'time': m.timestamp.strftime('%H:%M')} for m in messages])
+    return jsonify([{'sender': m.sender.username, 'avatar': get_avatar_url(m.sender), 'content': m.content, 'time': m.timestamp.strftime('%H:%M')} for m in messages])
 
 @app.route('/api/notifications')
 @login_required
@@ -329,17 +358,47 @@ def buy_post(post_id):
     if not existing:
         new_purchase = Purchase(user_id=current_user.id, post_id=post.id)
         db.session.add(new_purchase)
+        # 3. Update Stats
+        post.sold_count += 1
     
     # 2. Clear from Cart
     cart_item = CartItem.query.filter_by(user_id=current_user.id, post_id=post.id).first()
     if cart_item:
         db.session.delete(cart_item)
-
-    # 3. Update Stats
-    post.sold_count += 1
     
     db.session.commit()
     return jsonify({'status': 'success', 'sold': post.sold_count})
+
+@app.route('/api/premium/upgrade/<string:p_type>', methods=['POST'])
+@login_required
+def upgrade_premium(p_type):
+    if p_type in ['buyer', 'seller']:
+        current_user.premium_type = p_type
+        db.session.commit()
+    return jsonify({'status': 'success', 'type': current_user.premium_type})
+
+@app.route('/api/post/<int:post_id>/review', methods=['POST'])
+@login_required
+def post_review(post_id):
+    post = Post.query.get_or_404(post_id)
+    data = request.json
+    
+    if not data or 'content' not in data or not data['content']:
+        return jsonify({'status': 'error', 'message': 'Review content cannot be empty.'}), 400
+
+    new_review = Review(
+        content=data['content'],
+        rating=data.get('rating', 5),
+        post_id=post.id,
+        user_id=current_user.id
+    )
+    db.session.add(new_review)
+    db.session.commit()
+    
+    return jsonify({
+        'status': 'success', 
+        'review': {'user': current_user.username, 'text': new_review.content}
+    })
 
 @app.route('/api/library')
 @login_required
@@ -351,7 +410,7 @@ def get_library():
         'title': p.title,
         'video': url_for('static', filename=p.filename),
         'user': p.author.username
-    } for p in posts])
+    } for p in posts if p])
 
 # --- CART SYSTEM ---
 
@@ -364,8 +423,8 @@ def get_cart():
         'id': p.id, 'title': p.title, 'price': p.price,
         'video': url_for('static', filename=p.filename),
         'user': p.author.username
-    } for p in posts])
-
+    } for p in posts if p])
+ 
 @app.route('/api/cart/add/<int:post_id>', methods=['POST'])
 @login_required
 def add_to_cart(post_id):

@@ -7,7 +7,7 @@ assets = [
     {"u": "Dinesh", "t": "RPG INVENTORY UI", "f": "human.mp4", "p": 899, "d": "Drag and drop inventory."},
     {"u": "Bhargav", "t": "DRONE AI SWARM", "f": "drone.mp4", "p": 1200, "d": "Autonomous pathfinding."},
     {"u": "Bora", "t": "FPS WEAPON PACK", "f": "tuuent.mp4", "p": 3000, "d": "10 High-fidelity weapons."},
-    {"u": "Tarun", "t": "OPEN WORLD MAP", "f": "damge taker cube.mp4", "p": 4500, "d": "8x8km Landscape."},
+    {"u": "Tarun", "t": "OPEN WORLD MAP", "f": "damage taker cube.mp4", "p": 4500, "d": "8x8km Landscape."},
     {"u": "Vinay", "t": "MULTIPLAYER CHAT", "f": "up jumping portal.mp4", "p": 600, "d": "Global voice chat."},
     {"u": "Charan", "t": "PARKOUR SYSTEM V2", "f": "human.mp4", "p": 1800, "d": "Climbing and vaulting."}
 ]
