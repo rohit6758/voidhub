@@ -10,8 +10,8 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = 'titan-epic-key-2026'
 
 # DATABASE CONFIG
-# Automatically switch to a cloud database if hosted, otherwise use localhost
-db_url = os.environ.get('DATABASE_URL', 'mysql+mysqlconnector://avnadmin:AVNS_8S30UYZzL3bXFZ-359f@mysql-1e76bdcd-rohit2906a-f74f.k.aivencloud.com:22275/defaultdb')
+# Look for a hidden environment variable, otherwise use a safe local fallback
+db_url = os.environ.get('DATABASE_URL', 'sqlite:///voidhub.db')
 if db_url.startswith("postgres://"):
     db_url = db_url.replace("postgres://", "postgresql://", 1)
 app.config['SQLALCHEMY_DATABASE_URI'] = db_url
