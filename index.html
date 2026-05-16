@@ -475,9 +475,10 @@ Logout
 
     <script>
     
-        const supabaseUrl = 'PASTE_YOUR_PROJECT_URL_HERE';
-        const supabaseAnonKey = 'sb_publishable_77AmS28Cr3xrjNBfM_d6FA_s4YK0WFs';
-        const supabase = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
+       
+        const supabaseUrl = 'https://sswrgkesmqzodcywmvla.supabase.co'; 
+        const supabaseAnonKey = 'sb_publishable_77AmS28Cr3xrjNBfM_d6FA_s4YK0...'; 
+        const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
 
         // --- CORE ---
         let currentUser = ""; // Supabase Auth will handle populating this later
@@ -705,14 +706,34 @@ async function renderDashboard() {
 }
 async function loadData() {
     try {
-        const res = await fetch('/api/posts');
-        const dbPosts = await res.json();
-        allPosts = dbPosts;
+        // We use supabaseClient here now
+        const { data: dbPosts, error } = await supabaseClient
+            .from('assets')
+            .select('*')
+            .order('created_at', { ascending: false }); 
+
+        if (error) {
+            console.error("Supabase Error:", error.message);
+            return;
+        }
+
+        allPosts = dbPosts.map(post => ({
+            id: post.id,
+            title: post.title,
+            price: post.price,
+            desc: post.description,
+            video: post.video_url,         
+            blueprint: post.blueprint_url, 
+            user: post.seller_id || "GUEST", 
+            sold: 0 
+        }));
         
         showPage('feed');
-    } catch(e) { console.error(e); }
-}
 
+    } catch(e) { 
+        console.error("Fatal Error loading data:", e); 
+    }
+}
         function showPage(page, param) {
             currentPage = page;
             const container = document.getElementById('contentArea');
@@ -1046,40 +1067,34 @@ function renderUpload() {
         }
         
 async function handleUpload(event) {
-    event.preventDefault(); // Stops the page from refreshing
+    event.preventDefault(); 
     
-    // Change button text to show it's working
     const submitBtn = event.target.querySelector('button[type="submit"] span');
     submitBtn.innerText = "UPLOADING TO NETWORK...";
     
-    // 1. Get the data from the form
     const title = document.querySelector('input[name="title"]').value;
     const price = document.querySelector('select[name="price"]').value;
     const desc = document.querySelector('textarea[name="desc"]').value;
     const videoFile = document.querySelector('input[name="video"]').files[0];
     const zipFile = document.querySelector('input[name="zip_file"]').files[0];
 
-    // 2. Upload Video to Supabase Storage
     const videoPath = `previews/${Date.now()}_${videoFile.name}`;
-    await supabase.storage.from('videos').upload(videoPath, videoFile);
+    await supabaseClient.storage.from('videos').upload(videoPath, videoFile);
         
-    // 3. Upload Blueprint ZIP to Supabase Storage
     const zipPath = `files/${Date.now()}_${zipFile.name}`;
-    await supabase.storage.from('blueprints').upload(zipPath, zipFile);
+    await supabaseClient.storage.from('blueprints').upload(zipPath, zipFile);
 
-    // Get the public URLs for those files
-    const videoUrl = supabase.storage.from('videos').getPublicUrl(videoPath).data.publicUrl;
-    const blueprintUrl = supabase.storage.from('blueprints').getPublicUrl(zipPath).data.publicUrl;
+    const videoUrl = supabaseClient.storage.from('videos').getPublicUrl(videoPath).data.publicUrl;
+    const blueprintUrl = supabaseClient.storage.from('blueprints').getPublicUrl(zipPath).data.publicUrl;
 
-    // 4. Save to Database Table
-    const { error } = await supabase.from('assets').insert([
+    const { error } = await supabaseClient.from('assets').insert([
         { 
             title: title, 
             price: parseInt(price), 
             description: desc, 
             video_url: videoUrl, 
             blueprint_url: blueprintUrl,
-            seller_id: null // We will link this to the real user ID in the next phase!
+            seller_id: null 
         }
     ]);
 
