@@ -3,17 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>VOID HUB </title>
+    <title>NINEFALL HUB</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;500;700&family=Syncopate:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
         :root { 
-            --void: #000000; 
-            --carbon: #0a0a0a;
+            --void: #0b0914; 
+            --carbon: #130f23;
             --thread: rgba(255, 255, 255, 0.1);
-            --prism-1: #00f0ff; /* Cyber Cyan */
+            --prism-1: #b026ff; /* Neon Purple */
             --prism-2: #ff0055; /* Hyper Pink */
             --prism-3: #ffd700; /* Liquid Gold */
         }
@@ -41,8 +43,9 @@
             background: var(--carbon);
             border: 1px solid var(--thread);
             position: relative;
-            transition: 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+            transition: all 0.3s ease;
             overflow: hidden;
+            border-radius: 8px;
         }
         .stitch-card::before {
             content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 2px;
@@ -50,7 +53,7 @@
             transform: scaleX(0); transform-origin: left; transition: 0.4s; z-index: 10;
         }
         .stitch-card:hover::before { transform: scaleX(1); }
-        .stitch-card:hover { transform: translateY(-5px); box-shadow: 0 20px 50px -10px rgba(0, 240, 255, 0.15); border-color: #333; }
+        .stitch-card:hover { transform: translateY(-5px); box-shadow: 0 15px 40px -10px rgba(0, 240, 255, 0.15); border-color: rgba(0, 240, 255, 0.3); }
 
         .avatar-prism {
             width: 100%; height: 100%; object-fit: cover;
@@ -61,8 +64,8 @@
 
         .mobile-bar {
             position: fixed; bottom: 0; left: 0; width: 100%; 
-            background: rgba(10, 10, 10, 0.95); backdrop-filter: blur(20px);
-            border-top: 1px solid var(--thread); z-index: 90;
+            background: rgba(11, 9, 20, 0.90); backdrop-filter: blur(20px);
+            border-top: 1px solid rgba(99, 102, 241, 0.1); z-index: 90;
             display: none; justify-content: space-around; padding: 12px 0;
         }
         @media (max-width: 768px) {
@@ -89,58 +92,132 @@
         .doc-card:hover { border-color: var(--prism-1); box-shadow: 0 0 20px rgba(0, 240, 255, 0.1); }
         .logic-box { background: #000; border-left: 2px solid var(--prism-2); padding: 10px; font-family: monospace; font-size: 11px; color: #aaa; margin-top: 10px; }
 
-
-        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 100; backdrop-filter: blur(10px); justify-content: center; align-items: center; }
-        .modal-content { background: #050505; border: 1px solid #333; max-width: 1000px; width: 95%; height: 90vh; overflow-y: auto; display: flex; flex-direction: column; }
+        .modal-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 100; backdrop-filter: blur(10px);
+            display: flex; justify-content: center; align-items: center;
+            opacity: 0; visibility: hidden; transition: all 0.3s ease;
+        }
+        .modal-overlay.active { opacity: 1; visibility: visible; }
+        .modal-content {
+            transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.4s ease;
+            transform: scale(0.98) translateY(10px); opacity: 0;
+        }
+        .modal-overlay.active .modal-content { transform: scale(1) translateY(0); opacity: 1; }
 
         @keyframes ghostScroll {
             0% { transform: translateY(0); }
             100% { transform: translateY(-50%); }
         }
         .ghost-data { animation: ghostScroll 20s linear infinite; }
+        
+        .integrity-dots {
+            background-image: linear-gradient(to right, var(--prism-1) 3px, transparent 3px);
+            background-size: 8px 3px;
+            background-repeat: repeat-x;
+            background-position: center;
+            height: 3px;
+            width: 92%;
+            opacity: 0.8;
+        }
+        .integrity-dots-bg {
+            background-image: linear-gradient(to right, rgba(255,255,255,0.1) 3px, transparent 3px);
+            background-size: 8px 3px;
+            background-repeat: repeat-x;
+            background-position: center;
+            height: 3px;
+            width: 100%;
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+        .custom-scrollbar:hover::-webkit-scrollbar-thumb { background: rgba(0,240,255,0.3); }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in-up { animation: fadeInUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        
+        /* Premium Modal Enhancements */
+        @keyframes proParticle {
+            0% { transform: translateY(0) scale(1); opacity: 0; }
+            20% { opacity: 0.8; }
+            80% { opacity: 0.5; }
+            100% { transform: translateY(-80px) scale(0); opacity: 0; }
+        }
+        .pro-particle {
+            position: absolute;
+            background: var(--prism-1);
+            border-radius: 50%;
+            pointer-events: none;
+            animation: proParticle linear infinite;
+            box-shadow: 0 0 8px var(--prism-1);
+        }
+        .feature-item {
+            transition: all 0.3s ease;
+            cursor: default;
+        }
+        .feature-item:hover {
+            transform: translateX(6px);
+            color: white;
+            text-shadow: 0 0 12px rgba(176,38,255,0.8);
+        }
+        .glow-divider {
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(176,38,255,0.6), transparent);
+            box-shadow: 0 0 10px rgba(176,38,255,0.4);
+        }
     </style>
 </head>
 <body class="flex h-screen">
 
-    <aside class="desktop-sidebar w-20 md:w-64 border-r border-white/10 flex flex-col justify-between fixed h-full bg-black z-50">
+    <!-- Ambient Background Glows -->
+    <div class="fixed top-[-10%] left-[-10%] w-[50vw] h-[50vw] bg-purple-600/10 rounded-full blur-[150px] pointer-events-none z-[-1]"></div>
+    <div class="fixed bottom-[-10%] right-[-10%] w-[40vw] h-[40vw] bg-cyan-600/5 rounded-full blur-[150px] pointer-events-none z-[-1]"></div>
+
+    <aside class="desktop-sidebar w-20 md:w-64 border-r border-indigo-500/10 flex flex-col justify-between fixed h-full bg-[#0b0914]/90 backdrop-blur-md z-50">
         <div>
-            <div class="h-20 flex items-center justify-center md:justify-start md:px-8 border-b border-white/10">
-                <div class="w-10 h-10 bg-gray-600 flex items-center justify-center shadow-lg">
+            <div class="h-20 flex items-center justify-center md:justify-start md:px-8 border-b border-indigo-500/10">
+                <div class="w-10 h-10 bg-purple-900/50 border border-purple-500/30 flex items-center justify-center shadow-[0_0_15px_rgba(176,38,255,0.2)]">
                     <span class="text-white font-black text-2xl brand-font">V</span>
                 </div>
-                <span class="brand-font ml-4 text-xl hidden md:block">VOID HUB</span>
+                <span class="brand-font ml-4 text-xl hidden md:block">NINEFALL HUB</span>
             </div>
             <div class="p-4 space-y-2">
     
-    <div onclick="showPage('feed')" class="flex items-center gap-4 p-4 text-gray-400 hover:text-white hover:bg-white/5 cursor-pointer transition group rounded-lg" id="nav-feed">
+    <div onclick="showPage('feed')" class="flex items-center gap-4 p-4 text-indigo-200/50 hover:text-white hover:bg-indigo-500/10 cursor-pointer transition group rounded-lg" id="nav-feed">
         <i class="fa-solid fa-globe text-xl group-hover:text-cyan-400"></i> <span class="hidden md:block font-bold">STORE</span>
     </div>
-    <div onclick="checkLoginAndAction(() => showPage('chat_hub'))" class="flex items-center gap-4 p-4 text-gray-400 hover:text-white hover:bg-white/5 cursor-pointer transition group rounded-lg" id="nav-chat_hub">
+    <div onclick="checkLoginAndAction(() => showPage('chat_hub'))" class="flex items-center gap-4 p-4 text-indigo-200/50 hover:text-white hover:bg-indigo-500/10 cursor-pointer transition group rounded-lg" id="nav-chat_hub">
     <i class="fa-solid fa-comment-dots text-xl group-hover:text-blue-400"></i> <span class="hidden md:block font-bold">CHAT</span>
 </div>
-    <div onclick="showPage('saved')" class="flex items-center gap-4 p-4 text-gray-400 hover:text-white hover:bg-white/5 cursor-pointer transition group rounded-lg" id="nav-saved">
+    <div onclick="showPage('saved')" class="flex items-center gap-4 p-4 text-indigo-200/50 hover:text-white hover:bg-indigo-500/10 cursor-pointer transition group rounded-lg" id="nav-saved">
         <i class="fa-solid fa-bookmark text-xl group-hover:text-pink-500"></i> <span class="hidden md:block font-bold">SAVED</span>
     </div>
 
 
-    <div onclick="checkLoginAndAction(() => showPage('upload'))" class="flex items-center gap-4 p-4 text-gray-400 hover:text-white hover:bg-white/5 cursor-pointer transition group rounded-lg" id="nav-upload">
+    <div onclick="checkLoginAndAction(() => showPage('upload'))" class="flex items-center gap-4 p-4 text-indigo-200/50 hover:text-white hover:bg-indigo-500/10 cursor-pointer transition group rounded-lg" id="nav-upload">
         <i class="fa-solid fa-upload text-xl group-hover:text-yellow-400"></i> <span class="hidden md:block font-bold">UPLOAD</span>
     </div>
-    <div onclick="showPage('cart')" class="flex items-center gap-4 p-4 text-gray-400 hover:text-white hover:bg-white/5 cursor-pointer transition group rounded-lg" id="nav-cart">
+    <div onclick="showPage('cart')" class="flex items-center gap-4 p-4 text-indigo-200/50 hover:text-white hover:bg-indigo-500/10 cursor-pointer transition group rounded-lg" id="nav-cart">
         <i class="fa-solid fa-cart-shopping text-xl group-hover:text-green-400"></i> <span class="hidden md:block font-bold">CART</span>
     </div>
-    <div onclick="checkLoginAndAction(() => renderDashboard())" class="flex items-center gap-4 p-4 text-gray-400 hover:text-white hover:bg-white/5 cursor-pointer transition group rounded-lg">
+    <div onclick="checkLoginAndAction(() => renderDashboard())" class="flex items-center gap-4 p-4 text-indigo-200/50 hover:text-white hover:bg-indigo-500/10 cursor-pointer transition group rounded-lg">
     <i class="fa-solid fa-chart-pie text-xl group-hover:text-green-400"></i> <span class="hidden md:block font-bold">DASHBOARD</span>
 </div>
-<div onclick="checkLoginAndAction(() => renderLibrary())" class="flex items-center gap-4 p-4 text-gray-400 hover:text-white hover:bg-white/5 cursor-pointer transition group rounded-lg">
+<div onclick="checkLoginAndAction(() => renderLibrary())" class="flex items-center gap-4 p-4 text-indigo-200/50 hover:text-white hover:bg-indigo-500/10 cursor-pointer transition group rounded-lg">
     <i class="fa-solid fa-hard-drive text-xl group-hover:text-cyan-400"></i> <span class="hidden md:block font-bold">LIBRARY</span>
 </div>
-    <div onclick="showPage('info')" class="flex items-center gap-4 p-4 text-gray-400 hover:text-white hover:bg-white/5 cursor-pointer transition group rounded-lg" id="nav-info">
+    <div onclick="showPage('info')" class="flex items-center gap-4 p-4 text-indigo-200/50 hover:text-white hover:bg-indigo-500/10 cursor-pointer transition group rounded-lg" id="nav-info">
         <i class="fa-solid fa-book text-xl group-hover:text-purple-400"></i> <span class="hidden md:block font-bold">DOCS</span>
     </div>
         </div>
 
-        <div onclick="checkLoginAndAction(() => showPage('profile', currentUser))" class="p-6 border-t border-white/10 cursor-pointer hover:bg-white/5 transition group">
+        <div onclick="checkLoginAndAction(() => showPage('profile', currentUser))" class="p-6 border-t border-indigo-500/10 cursor-pointer hover:bg-indigo-500/10 transition group">
             <div class="flex items-center gap-3">
                 <div class="w-10 h-10 relative">
                     <img id="sideAvatar" src="https://api.dicebear.com/7.x/shapes/svg?seed=Guest" class="avatar-prism">
@@ -148,7 +225,7 @@
                 </div>
                 <div class="hidden md:block">
                     <p id="sideUser" class="font-bold text-sm">GUEST</p>
-                    <p class="text-[10px] text-gray-500 group-hover:text-cyan-400">VIEW PROFILE</p>
+                    <p class="text-[10px] text-indigo-200/50 group-hover:text-cyan-400">VIEW PROFILE</p>
                     <button onclick="logoutUser()" 
 class="mt-2 text-[10px] text-red-400 hover:text-red-600 uppercase">
 Logout
@@ -171,18 +248,20 @@ Logout
 
         <div class="flex items-center gap-2">
             <div class="relative group">
-                <i class="fa-solid fa-filter absolute left-3 top-1/2 -translate-y-1/2 text-cyan-400 text-[10px]"></i>
-                <select id="filterCategory" onchange="applyFilters()" class="bg-black border border-white/20 text-[10px] text-white pl-7 pr-3 h-10 outline-none focus:border-cyan-400 uppercase tracking-widest cursor-pointer hover:bg-white/5 transition appearance-none min-w-[130px]">
+                    <i class="fa-solid fa-filter absolute left-3 top-1/2 -translate-y-1/2 text-cyan-400 text-xs"></i>
+                    <select id="filterCategory" onchange="applyFilters()" class="bg-black border border-white/20 text-xs text-white pl-7 pr-3 h-10 outline-none focus:border-cyan-400 uppercase tracking-widest cursor-pointer hover:bg-white/5 transition appearance-none min-w-[130px]">
                     <option value="all" class="bg-black text-white">Sector: All</option>
-                    <option value="horror" class="bg-black text-white">Sector: Horror</option>
-                    <option value="vehicle" class="bg-black text-white">Sector: Vehicles</option>
-                    <option value="weapon" class="bg-black text-white">Sector: Weapons</option>
-                    <option value="system" class="bg-black text-white">Sector: Systems</option>
+                    <option value="vehicles" class="bg-black text-white">Sector: Vehicles</option>
+                    <option value="house" class="bg-black text-white">Sector: House & Arch</option>
+                    <option value="human" class="bg-black text-white">Sector: Characters</option>
+                    <option value="weapons" class="bg-black text-white">Sector: Weapons</option>
+                    <option value="systems" class="bg-black text-white">Sector: Systems</option>
                 </select>
             </div>
 
-            <div class="relative group hidden xl:block"> <i class="fa-solid fa-arrow-down-short-wide absolute left-3 top-1/2 -translate-y-1/2 text-pink-500 text-[10px]"></i>
-                <select id="sortPrice" onchange="applyFilters()" class="bg-black border border-white/20 text-[10px] text-white pl-7 pr-3 h-10 outline-none focus:border-pink-500 uppercase tracking-widest cursor-pointer hover:bg-white/5 transition appearance-none min-w-[130px]">
+                <div class="relative group hidden xl:block"> <i class="fa-solid fa-arrow-down-short-wide absolute left-3 top-1/2 -translate-y-1/2 text-pink-500 text-xs"></i>
+                    <select id="sortPrice" onchange="applyFilters()" class="bg-black border border-white/20 text-xs text-white pl-7 pr-3 h-10 outline-none focus:border-pink-500 uppercase tracking-widest cursor-pointer hover:bg-white/5 transition appearance-none min-w-[130px]">
+                    <option value="bestseller" class="bg-black text-white">Sort: Best Sellers</option>
                     <option value="new" class="bg-black text-white">Sort: Newest</option>
                     <option value="low" class="bg-black text-white">Price: Low to High</option>
                     <option value="high" class="bg-black text-white">Price: High to Low</option>
@@ -207,179 +286,148 @@ Logout
     </main>
 
     <div class="mobile-bar">
-        <i onclick="showPage('feed')" class="fa-solid fa-globe text-xl text-gray-400 hover:text-cyan-400"></i>
-        <i onclick="showPage('saved')" class="fa-solid fa-bookmark text-xl text-gray-400 hover:text-pink-500"></i>
+        <i onclick="showPage('feed')" class="fa-solid fa-globe text-xl text-indigo-200/50 hover:text-purple-400 transition"></i>
+        <i onclick="showPage('saved')" class="fa-solid fa-bookmark text-xl text-indigo-200/50 hover:text-pink-500 transition"></i>
         <div onclick="checkLoginAndAction(() => showPage('upload'))" class="w-12 h-12 bg-white text-black flex items-center justify-center rounded-full -mt-6 border-4 border-black shadow-lg shadow-cyan-500/50"><i class="fa-solid fa-plus text-xl"></i></div>
-        <i onclick="showPage('cart')" class="fa-solid fa-cart-shopping text-xl text-gray-400 hover:text-green-400"></i>
+        <i onclick="showPage('cart')" class="fa-solid fa-cart-shopping text-xl text-indigo-200/50 hover:text-green-400 transition"></i>
         <img onclick="checkLoginAndAction(() => showPage('profile', currentUser))" id="mobileAvatar" src="https://api.dicebear.com/7.x/shapes/svg?seed=Guest" class="w-8 h-8 avatar-prism bg-gray-800">
     </div>
 
     <div id="productModal" class="modal-overlay">
-        <div class="modal-content mx-auto my-auto relative">
-            <button onclick="closeModal('productModal')" class="absolute top-4 right-4 z-50 w-10 h-10 bg-black border border-white/20 text-white flex items-center justify-center hover:bg-white hover:text-black transition"><i class="fa-solid fa-xmark"></i></button>
-            <div class="grid grid-cols-1 md:grid-cols-2 h-full">
-                <div class="bg-black relative group">
-                    <video id="modalVideo" class="w-full h-full object-cover" controls autoplay loop></video>
-                    <div class="absolute bottom-0 left-0 w-full p-8 bg-gradient-to-t from-black to-transparent">
-                        <h1 id="modalTitle" class="text-4xl font-black uppercase mb-2">TITLE</h1>
-                        <div class="flex items-center gap-4">
-                            <span id="modalUser" class="text-cyan-400 font-bold tracking-widest text-sm cursor-pointer hover:underline" onclick="closeModal('productModal'); showPage('profile', this.innerText)">CREATOR</span>
-                            <span class="text-gray-500">|</span>
-                            <span class="text-yellow-500 font-bold">★★★★★</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="p-8 md:p-12 flex flex-col h-full bg-[#080808] relative overflow-hidden">
-                    <!-- GHOST DATA SIDEBAR -->
-                    <div class="absolute inset-0 pointer-events-none z-0 overflow-hidden opacity-40 select-none flex flex-col" style="-webkit-mask-image: linear-gradient(to bottom, black 20%, transparent 100%); mask-image: linear-gradient(to bottom, black 20%, transparent 100%);">
-                        <div class="text-[#161B22] font-mono text-[10px] leading-tight whitespace-pre ghost-data p-4">
-// INITIALIZING PHOENIX ENGINE v2.4.1
-[SYS] Booting core logic components... OK
-[SYS] Verifying topology integrity... OK
-{
-  "asset_signature": "0x8f3A...99C",
-  "mesh_bounds": [120, 45, 200],
-  "uv_channels": 2,
-  "collision": "complex_as_simple"
-}
-> Scanning material graphs...
-> Checking for unreferenced nodes...
-> Evaluating performance weight...
-[OK] All nodes compliant with VOID specs.
-// RESTARTING CYCLE...
-// INITIALIZING PHOENIX ENGINE v2.4.1
-[SYS] Booting core logic components... OK
-[SYS] Verifying topology integrity... OK
-{
-  "asset_signature": "0x8f3A...99C",
-  "mesh_bounds": [120, 45, 200],
-  "uv_channels": 2,
-  "collision": "complex_as_simple"
-}
-> Scanning material graphs...
-> Checking for unreferenced nodes...
-> Evaluating performance weight...
-[OK] All nodes compliant with VOID specs.
-                        </div>
-                    </div>
+        <div class="modal-content mx-auto my-auto relative w-full max-w-6xl h-[90vh] bg-[#050505] flex flex-col rounded-xl border border-white/10 shadow-[0_0_50px_rgba(0,240,255,0.05)] overflow-hidden">
+            <button onclick="closeModal('productModal')" class="absolute top-4 right-4 z-50 w-10 h-10 bg-black/50 backdrop-blur border border-white/20 text-white flex items-center justify-center hover:bg-white hover:text-black transition rounded-full"><i class="fa-solid fa-xmark"></i></button>
 
-                    <div class="flex justify-between items-start mb-4 relative z-10">
-                        <div><p class="text-gray-500 text-xs uppercase tracking-widest mb-1">Price</p><p id="modalPrice" class="text-3xl font-bold text-white">₹0</p></div>
-                        <div class="text-right"><p class="text-gray-500 text-xs uppercase tracking-widest mb-1">Sales</p><p id="modalSold" class="text-3xl font-bold text-green-500">0</p></div>
-                    </div>
+            <div class="flex-1 overflow-y-auto custom-scrollbar p-6 md:p-8">
+
+                <!-- Details Grid -->
+                <div class="grid grid-cols-1 lg:grid-cols-[3fr_2fr] gap-10 items-start relative">
                     
-                    <!-- SOCIAL PROOF TICKER -->
-                    <div class="text-[10px] text-gray-500 mb-6 font-mono flex items-center gap-2 relative z-10 w-fit">
-                        <i class="fa-solid fa-satellite-dish text-cyan-400 animate-pulse"></i> 
-                        <span>Analyzed by <span class="text-white font-bold" id="spDevelopers">42</span> developers this week. | Status: <span class="text-green-400">Operational</span>.</span>
-                    </div>
-
-                    <div class="bg-blue-900/20 border border-blue-500/30 p-3 mb-6 flex items-center gap-3 rounded relative z-10 backdrop-blur-sm">
-                        <i class="fa-solid fa-shield-halved text-blue-400"></i>
-                        <p class="text-[10px] text-blue-200"><strong>VOID Guarantee:</strong> Verified working asset or money back.</p>
-                    </div>
-
-                    <!-- PHOENIX SPEC-GRID -->
-                    <div class="grid grid-cols-2 gap-2 mb-6 relative z-10">
-                        <div class="border border-cyan-500/30 bg-[#050505]/80 p-3 backdrop-blur-sm group hover:border-cyan-400 transition cursor-default">
-                            <p class="text-[8px] text-gray-500 uppercase tracking-widest mb-1">Verified_Build</p>
-                            <p class="text-xs text-white font-bold font-mono">UE 5.5</p>
-                        </div>
-                        <div class="border border-cyan-500/30 bg-[#050505]/80 p-3 backdrop-blur-sm group hover:border-cyan-400 transition cursor-default">
-                            <p class="text-[8px] text-gray-500 uppercase tracking-widest mb-1">Sync_Type</p>
-                            <p class="text-xs text-white font-bold font-mono">REPLICATED</p>
-                        </div>
-                        <div class="border border-cyan-500/30 bg-[#050505]/80 p-3 backdrop-blur-sm group hover:border-cyan-400 transition cursor-default">
-                            <p class="text-[8px] text-gray-500 uppercase tracking-widest mb-1">Logic_Weight</p>
-                            <p class="text-xs text-white font-bold font-mono">LIGHT</p>
-                        </div>
-                        <div class="border border-cyan-500/30 bg-[#050505]/80 p-3 backdrop-blur-sm group hover:border-cyan-400 transition cursor-default">
-                            <p class="text-[8px] text-gray-500 uppercase tracking-widest mb-1">Asset_ID</p>
-                            <p class="text-xs text-white font-bold font-mono">PHX-<span id="phxAssetId">77</span></p>
-                        </div>
-                    </div>
-
-                    <div class="flex gap-4 mb-6 relative z-10">
-                        <button id="modalBuyBtn" class="flex-1 btn-prism bg-white text-black"><span>BUY NOW</span></button>
-                        <button id="modalCartBtn" class="flex-1 btn-prism bg-[#111] text-white border border-white/20"><span>ADD TO CART</span></button>
-                        <button id="modalSaveBtn" class="w-16 border border-white/20 flex items-center justify-center hover:bg-white/10 transition bg-black/50 backdrop-blur-sm"><i class="fa-regular fa-bookmark"></i></button>
-                    </div>
-
-                    <!-- VOID PERFORMANCE BAR -->
-                    <div class="mb-4 relative z-10">
-                        <div class="flex justify-between items-end mb-1">
-                            <span class="text-[9px] text-gray-500 uppercase tracking-widest">Estimated_Stability</span>
-                            <span class="text-[9px] text-cyan-400 font-bold font-mono">92%</span>
-                        </div>
-                        <div class="w-full h-1.5 bg-[#111] border border-white/10 flex gap-[2px] p-[1px]">
-                            <div class="h-full bg-cyan-400 flex-1"></div>
-                            <div class="h-full bg-cyan-400 flex-1"></div>
-                            <div class="h-full bg-cyan-400 flex-1"></div>
-                            <div class="h-full bg-cyan-400 flex-1"></div>
-                            <div class="h-full bg-cyan-400/20 flex-1"></div>
-                        </div>
-                    </div>
-
-                    <button class="w-full btn-prism bg-cyan-400 text-black mb-8 hover:bg-cyan-300 border border-cyan-400/20 relative z-10" onclick="togglePhoenixPanel()"><span><i class="fa-solid fa-microchip"></i> ANALYZE WITH PHOENIX ENGINE</span></button>
-                    
-                    <div id="phoenixPanel" class="hidden mb-8 bg-[#0a0a0a] border border-cyan-500/30 p-4 rounded shadow-[0_0_15px_rgba(0,240,255,0.1)] relative z-10">
-                        <h4 class="text-orange-500 font-bold text-xs mb-3 uppercase tracking-widest"><i class="fa-solid fa-microchip"></i> PHOENIX BLUEPRINT TEST</h4>
-                        <div class="grid grid-cols-2 gap-3 mb-3">
-                            <div><label class="text-[9px] text-gray-500 uppercase">Asset Type</label><input type="text" id="phxType" placeholder="e.g. boat" class="w-full bg-black border border-white/10 text-xs p-2 text-white outline-none focus:border-orange-500"></div>
-                            <div><label class="text-[9px] text-gray-500 uppercase">Max Speed</label><input type="number" id="phxSpeed" placeholder="280" class="w-full bg-black border border-white/10 text-xs p-2 text-white outline-none focus:border-orange-500"></div>
-                            <div><label class="text-[9px] text-gray-500 uppercase">Poly Count</label><input type="number" id="phxPoly" placeholder="45000" class="w-full bg-black border border-white/10 text-xs p-2 text-white outline-none focus:border-orange-500"></div>
-                            <div><label class="text-[9px] text-gray-500 uppercase">Buoyancy Force</label><input type="number" id="phxBuoyancy" placeholder="1.5" step="0.1" class="w-full bg-black border border-white/10 text-xs p-2 text-white outline-none focus:border-orange-500"></div>
-                        </div>
-                        <button onclick="runPhoenixAnalysis()" class="w-full bg-orange-500 text-black font-bold text-xs py-2 hover:bg-orange-400 transition" id="phxRunBtn">RUN SIMULATION</button>
-                        <div id="phoenixOutput" class="mt-4 hidden p-3 bg-black border border-white/10 text-xs text-orange-400 font-mono whitespace-pre-wrap"></div>
-                    </div>
-                    
-                    <div class="flex-1 overflow-y-auto pr-2 relative z-10">
-                        <h3 class="font-bold text-white mb-4 border-b border-white/10 pb-2">DESCRIPTION</h3>
-                        <p class="text-gray-400 text-sm leading-relaxed mb-8" id="modalDesc"></p>
+                    <!-- Left Side: Video, Title, Desc, Reviews -->
+                    <div class="flex flex-col gap-8">
                         
-                        <h3 class="font-bold text-white mb-4 border-b border-white/10 pb-2">COMMUNITY REVIEWS</h3>
-                        <div id="modalReviews" class="space-y-4 mb-4"></div>
-                        <div class="flex gap-2">
-                            <input type="text" id="newReviewInput" placeholder="Write a review..." class="flex-1 bg-white/5 border border-white/10 p-3 text-xs text-white focus:border-cyan-400 outline-none">
-                            <button onclick="postReview()" class="px-4 bg-white/10 hover:bg-white hover:text-black text-xs font-bold transition">POST</button>
+                        <div class="w-full aspect-video bg-black rounded-xl overflow-hidden border border-white/10 shadow-[0_0_40px_rgba(176,38,255,0.15)] relative">
+                            <video id="modalVideo" class="w-full h-full object-cover opacity-90 hover:opacity-100 transition duration-500" controls autoplay loop playsinline></video>
+                        </div>
+
+                        <div>
+                            <div class="flex items-center gap-3 mb-3">
+                                <span id="modalUser" class="text-cyan-400 font-bold tracking-widest text-xs cursor-pointer hover:underline uppercase bg-cyan-500/10 px-2 py-1 rounded" onclick="closeModal('productModal'); showPage('profile', this.innerText)">CREATOR</span>
+                                <span class="text-yellow-500 text-xs font-bold"><i class="fa-solid fa-star"></i> 4.9</span>
+                            </div>
+                            <h1 id="modalTitle" class="text-3xl lg:text-5xl font-black uppercase leading-tight text-white brand-font tracking-tighter mb-4">TITLE</h1>
+                            <div class="flex flex-wrap gap-4 text-[10px] text-gray-400 font-mono tracking-widest uppercase">
+                                <span><i class="fa-solid fa-gamepad mr-1 text-purple-400"></i> UE 5.5</span>
+                                <span><i class="fa-solid fa-network-wired mr-1 text-cyan-400"></i> Multiplayer</span>
+                                <span><i class="fa-solid fa-bolt mr-1 text-yellow-400"></i> Lightweight</span>
+                            </div>
+                        </div>
+
+                        <div>
+                            <h3 class="font-bold text-white mb-4 uppercase tracking-widest text-sm border-l-2 border-cyan-400 pl-3">SYSTEM DIRECTIVE (DESC)</h3>
+                            <p class="text-gray-400 text-sm leading-relaxed font-mono bg-[#130f23] p-5 rounded-lg border border-white/5" id="modalDesc"></p>
+                        </div>
+
+                        <div>
+                            <h3 class="font-bold text-white mb-6 uppercase tracking-widest text-sm border-l-2 border-pink-500 pl-3">COMMUNITY REVIEWS</h3>
+                            <div id="modalReviews" class="space-y-4 mb-6 max-h-80 overflow-y-auto custom-scrollbar pr-2"></div>
+                            <div class="flex gap-2">
+                                <input type="text" id="newReviewInput" placeholder="Write a review..." class="flex-1 bg-[#130f23] border border-white/10 rounded-lg p-3 text-xs text-white focus:border-pink-500 outline-none transition">
+                                <button onclick="postReview()" class="px-6 bg-pink-500/10 text-pink-500 border border-pink-500/30 rounded-lg hover:bg-pink-500 hover:text-black text-xs font-bold transition uppercase tracking-widest">POST</button>
+                            </div>
                         </div>
                     </div>
+
+                    <!-- Right Side: Buy Box, Guarantee, Creator & Specs (Sticky) -->
+                    <div class="flex flex-col gap-4 lg:sticky lg:top-5 h-fit">
+                        <div class="bg-[#130f23] p-6 md:p-8 border border-white/10 rounded-xl shadow-2xl">
+                            <div class="flex justify-between items-end mb-6 pb-6 border-b border-white/10">
+                                <div>
+                                    <p class="text-gray-500 text-[10px] uppercase tracking-widest mb-1">License Value</p>
+                                    <p id="modalPrice" class="text-4xl md:text-5xl font-black text-white brand-font tracking-tighter">₹0</p>
+                                </div>
+                                <div class="text-right">
+                                    <p class="text-gray-500 text-[10px] uppercase tracking-widest mb-1">Deployments</p>
+                                    <p id="modalSold" class="text-xl md:text-2xl font-bold text-green-500 brand-font">0</p>
+                                </div>
+                            </div>
+                            <div class="flex flex-col gap-4">
+                                <button id="modalBuyBtn" class="w-full bg-white text-black font-black uppercase tracking-widest text-sm py-4 rounded hover:bg-gray-200 transition transform hover:scale-[1.02] active:scale-95 shadow-[0_0_20px_rgba(255,255,255,0.2)]">BUY NOW</button>
+                                <div class="flex gap-2">
+                                    <button id="modalCartBtn" class="flex-1 bg-black border border-white/20 text-white font-bold uppercase tracking-widest text-xs py-4 rounded hover:border-white hover:bg-white/5 transition">ADD TO CART</button>
+                                    <button id="modalSaveBtn" class="w-14 border border-white/20 rounded flex items-center justify-center hover:bg-white/10 transition bg-black text-gray-400 hover:text-white"><i class="fa-regular fa-bookmark"></i></button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-purple-900/10 border border-purple-500/30 p-5 rounded-xl flex items-center gap-4 shadow-inner">
+                            <i class="fa-solid fa-shield-check text-purple-400 text-3xl"></i>
+                            <p class="text-[10px] text-gray-300 font-mono tracking-widest uppercase leading-relaxed"><strong>Ninefall Guarantee:</strong> Verified working asset or full money back.</p>
+                        </div>
+
+                        <div class="bg-[#0a0a0a] border border-white/5 p-4 flex items-center justify-between rounded-xl cursor-pointer hover:border-cyan-500/30 transition group" onclick="closeModal('productModal'); showPage('profile', document.getElementById('modalCreatorName').innerText)">
+                             <div class="flex items-center gap-4">
+                                  <img id="modalCreatorAvatar" src="https://api.dicebear.com/7.x/shapes/svg?seed=Creator" class="w-10 h-10 rounded-full border border-white/10 object-cover">
+                                  <div>
+                                       <p class="text-white font-bold text-sm truncate" id="modalCreatorName">Creator</p>
+                                       <p class="text-[10px] text-cyan-400 uppercase tracking-widest mt-0.5">Verified Creator</p>
+                                  </div>
+                             </div>
+                             <i class="fa-solid fa-chevron-right text-gray-600 group-hover:text-cyan-400 transition"></i>
+                        </div>
+
+                        <div class="bg-[#0a0a0a] border border-white/5 p-5 rounded-xl text-xs text-gray-400 space-y-3 font-mono">
+                             <div class="flex justify-between items-center border-b border-white/5 pb-2"><span class="uppercase tracking-widest text-[10px]">Engine</span><span class="text-white font-bold">UE 5.5+</span></div>
+                             <div class="flex justify-between items-center border-b border-white/5 pb-2"><span class="uppercase tracking-widest text-[10px]">Network</span><span class="text-white font-bold">Replicated</span></div>
+                             <div class="flex justify-between items-center border-b border-white/5 pb-2"><span class="uppercase tracking-widest text-[10px]">File Size</span><span class="text-white font-bold">~450 MB</span></div>
+                             <div class="flex justify-between items-center"><span class="uppercase tracking-widest text-[10px]">Asset Type</span><span class="text-white font-bold">Blueprints</span></div>
+                        </div>
+                    </div>
+
                 </div>
             </div>
         </div>
     </div>
 
     <div id="premiumModal" class="modal-overlay">
-        <div class="bg-black border border-yellow-500/50 p-10 max-w-2xl w-full relative">
-            <button onclick="closeModal('premiumModal')" class="absolute top-4 right-4 text-gray-500 hover:text-white">✕</button>
-            <div class="text-center mb-8">
-                <i class="fa-solid fa-crown text-5xl text-yellow-500 mb-4"></i>
-                <h2 class="text-4xl font-black text-white uppercase tracking-tighter">Choose Your Path</h2>
-                <p class="text-gray-400 text-sm uppercase tracking-widest mt-2">Elevate your Void Hub Identity</p>
+        <div class="bg-[#0b0914] border border-purple-500/30 p-8 md:p-10 max-w-lg w-full relative rounded-2xl shadow-[0_0_60px_rgba(176,38,255,0.2)] overflow-hidden">
+            
+            <!-- Particles -->
+            <div class="pro-particle" style="left: 15%; bottom: 10%; width: 4px; height: 4px; animation-duration: 3s; animation-delay: 0s;"></div>
+            <div class="pro-particle" style="left: 45%; bottom: -5%; width: 6px; height: 6px; animation-duration: 4.5s; animation-delay: 1.2s;"></div>
+            <div class="pro-particle" style="left: 80%; bottom: 5%; width: 3px; height: 3px; animation-duration: 2.8s; animation-delay: 0.5s;"></div>
+            <div class="pro-particle" style="left: 60%; bottom: -10%; width: 5px; height: 5px; animation-duration: 3.8s; animation-delay: 2s;"></div>
+
+            <button onclick="closeModal('premiumModal')" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-gray-500 hover:text-white transition z-20"><i class="fa-solid fa-xmark"></i></button>
+            
+            <div class="text-center mb-8 relative z-10">
+                <i class="fa-solid fa-crown text-5xl text-purple-400 mb-4 drop-shadow-[0_0_20px_rgba(176,38,255,0.7)] animate-pulse"></i>
+                <h3 class="text-3xl md:text-4xl font-black text-white brand-font uppercase tracking-tighter">Ninefall Pro</h3>
+                <p class="text-xs text-gray-400 uppercase tracking-widest mt-2">Unlock the Network's Full Potential</p>
             </div>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div class="border border-cyan-500/30 bg-[#0a0a0a] p-6 hover:border-cyan-400 transition cursor-pointer relative" onclick="openPaymentUI(499, 'Void Pass (Buyer)', 'buyer')">
-                    <div class="absolute top-0 left-0 w-full h-1 bg-cyan-400"></div>
-                    <h3 class="text-xl font-black text-white">VOID PASS (BUYER)</h3>
-                    <p class="text-3xl font-bold text-cyan-400 mt-2">₹499<span class="text-xs text-gray-500">/mo</span></p>
-                    <ul class="text-xs text-gray-400 mt-4 space-y-2">
-                        <li>• Exclusive Cyan Profile Aura</li>
-                        <li>• Early Access to New Assets</li>
-                        <li>• 10% Discount on All Purchases</li>
-                    </ul>
+
+            <div class="flex justify-center mb-8 relative z-10">
+                <div class="bg-black border border-white/10 rounded-full p-1 flex relative">
+                    <button id="toggleMonthly" onclick="setProPricing('monthly')" class="px-6 py-2 rounded-full text-xs font-bold uppercase tracking-widest transition bg-purple-500 text-white">Monthly</button>
+                    <button id="toggleYearly" onclick="setProPricing('yearly')" class="px-6 py-2 rounded-full text-xs font-bold uppercase tracking-widest transition text-gray-500 hover:text-white">Yearly <span class="text-green-400 ml-1">-37%</span></button>
                 </div>
-                <div class="border border-yellow-500 bg-yellow-500/10 p-6 relative cursor-pointer" onclick="openPaymentUI(1499, 'Creator Pass (Seller)', 'seller')">
-                    <div class="absolute top-0 right-0 bg-yellow-500 text-black text-[10px] font-bold px-2 py-1 uppercase">For Creators</div>
-                    <div class="absolute top-0 left-0 w-full h-1 bg-yellow-400"></div>
-                    <h3 class="text-xl font-black text-white">CREATOR PASS</h3>
-                    <p class="text-3xl font-bold text-yellow-500 mt-2">₹1499<span class="text-xs text-gray-500">/mo</span></p>
-                    <ul class="text-xs text-gray-400 mt-4 space-y-2">
-                        <li>• Exclusive Gold Profile Aura</li>
-                        <li>• 0% Marketplace Platform Fees</li>
-                        <li>• Unlimited Asset Uploads</li>
-                    </ul>
-                </div>
+            </div>
+
+            <div class="border border-purple-500 bg-purple-500/10 p-6 md:p-8 relative cursor-pointer text-center group hover:bg-purple-500/20 transition rounded-xl overflow-hidden z-10" onclick="triggerProPayment()">
+                <div class="absolute top-0 left-0 w-full h-1 bg-purple-400 group-hover:shadow-[0_0_20px_#b026ff] transition"></div>
+                
+                <p id="proPriceDisplay" class="text-5xl font-black text-white tracking-tighter">₹199<span class="text-sm text-purple-400 font-bold ml-1">/mo</span></p>
+                <p id="proBilledDisplay" class="text-[10px] text-gray-500 uppercase tracking-widest mt-1">Billed Monthly</p>
+                <p class="text-[9px] text-gray-400 mt-2 italic">Cancel anytime.</p>
+                
+                <div class="w-full glow-divider my-6"></div>
+
+                <ul class="text-xs text-gray-300 space-y-4 text-left w-fit mx-auto font-mono relative z-10">
+                    <li class="feature-item flex items-center"><i class="fa-solid fa-percent text-purple-400 w-6 text-center text-sm drop-shadow-[0_0_5px_rgba(176,38,255,0.5)]"></i> 0% Platform Fees</li>
+                    <li class="feature-item flex items-center"><i class="fa-solid fa-tag text-purple-400 w-6 text-center text-sm drop-shadow-[0_0_5px_rgba(176,38,255,0.5)]"></i> 10% Global Discount</li>
+                    <li class="feature-item flex items-center"><i class="fa-solid fa-arrow-up-right-dots text-purple-400 w-6 text-center text-sm drop-shadow-[0_0_5px_rgba(176,38,255,0.5)]"></i> Priority Search Ranking</li>
+                    <li class="feature-item flex items-center"><i class="fa-solid fa-chart-line text-purple-400 w-6 text-center text-sm drop-shadow-[0_0_5px_rgba(176,38,255,0.5)]"></i> Advanced Seller Analytics</li>
+                    <li class="feature-item flex items-center"><i class="fa-solid fa-shield-check text-purple-400 w-6 text-center text-sm drop-shadow-[0_0_5px_rgba(176,38,255,0.5)]"></i> Verified 'Pro' Badge</li>
+                </ul>
             </div>
         </div>
     </div>
@@ -427,6 +475,10 @@ Logout
 
     <script>
     
+        const supabaseUrl = 'https://sswrgkesmqzodcywmvla.supabase.co';
+        const supabaseAnonKey = 'sb_publishable_77AmS28Cr3xrjNBfM_d6FA_s4YK0WFs';
+        const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
+
         // --- CORE ---
         const currentUser = "{{ current_user.username if current_user.is_authenticated else '' }}";
         const isLoggedIn = currentUser !== "";
@@ -443,7 +495,7 @@ async function openEditProfile() {
         document.getElementById('editUsername').value = currentUser;
         document.getElementById('editVoidId').value = profileData.void_id || '';
         document.getElementById('editBio').value = profileData.bio || '';
-        document.getElementById('editProfileModal').style.display = 'flex';
+        document.getElementById('editProfileModal').classList.add('active');
     } catch(e) {
         console.error("Failed to fetch profile for editing:", e);
         alert("Could not load profile data.");
@@ -454,6 +506,7 @@ async function saveProfileChanges() {
     const username = document.getElementById('editUsername').value;
     const bio = document.getElementById('editBio').value;
         const avatarFile = document.getElementById('editAvatar').files[0];
+        const bannerFile = document.getElementById('editBanner').files[0];
 
     const btn = document.getElementById('updateMatrixBtn');
     const originalText = btn.innerText;
@@ -464,6 +517,7 @@ async function saveProfileChanges() {
         formData.append('username', username);
         formData.append('bio', bio);
         if(avatarFile) formData.append('avatar', avatarFile);
+        if(bannerFile) formData.append('banner', bannerFile);
 
     try {
         const res = await fetch('/api/profile/update', {
@@ -493,13 +547,13 @@ async function saveProfileChanges() {
 
 function checkLoginAndAction(action){
     if(!isLoggedIn){
-        document.getElementById('authModal').style.display = 'flex';
+        document.getElementById('authModal').classList.add('active');
     }else{
         action();
     }
 }
 function closeModal(id){
-    document.getElementById(id).style.display='none';
+    document.getElementById(id).classList.remove('active');
 }
 
 function toggleAuth(){
@@ -651,23 +705,45 @@ async function renderDashboard() {
 }
 async function loadData() {
     try {
-        const res = await fetch('/api/posts');
-        const dbPosts = await res.json();
-        allPosts = dbPosts;
+        // We use supabaseClient here now
+        const { data: dbPosts, error } = await supabaseClient
+            .from('assets')
+            .select('*')
+            .order('created_at', { ascending: false }); 
+
+        if (error) {
+            console.error("Supabase Error:", error.message);
+            return;
+        }
+
+        allPosts = dbPosts.map(post => ({
+            id: post.id,
+            title: post.title,
+            price: post.price,
+            desc: post.description,
+            video: post.video_url,         
+            blueprint: post.blueprint_url, 
+            user: post.seller_id || "GUEST", 
+            sold: 0 
+        }));
         
         showPage('feed');
-    } catch(e) { console.error(e); }
+
+    } catch(e) { 
+        console.error("Fatal Error loading data:", e); 
+    }
 }
+
         function showPage(page, param) {
             currentPage = page;
             const container = document.getElementById('contentArea');
             container.innerHTML = "";
             window.scrollTo(0,0);
             
-            document.querySelectorAll('[id^="nav-"]').forEach(el => el.classList.remove('text-white','bg-white/5'));
-            if(document.getElementById('nav-'+page)) document.getElementById('nav-'+page).classList.add('text-white','bg-white/5');
+            document.querySelectorAll('[id^="nav-"]').forEach(el => el.classList.remove('text-white','bg-indigo-500/10'));
+            if(document.getElementById('nav-'+page)) document.getElementById('nav-'+page).classList.add('text-white','bg-indigo-500/10');
 
-            if(page === 'feed') renderFeed(allPosts);
+            if(page === 'feed') applyFilters(); // Auto-apply Best Sellers Sort
             else if(page === 'saved') renderFeed(allPosts.filter(p => savedItems.includes(p.id)));
             else if(page === 'cart') renderCart(); // NEW: Cart Page
             else if(page === 'chat_hub') renderChatHub();
@@ -682,17 +758,17 @@ function renderFeed(posts) {
     if (currentPage === 'feed' && posts.length > 0) {
         const feat = posts[0];
         html += `
-        <div onclick="openProduct(${feat.id})" class="relative w-full aspect-[2/1] md:aspect-[3/1] bg-black border border-white/10 mb-12 overflow-hidden cursor-pointer group">
-            <video class="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition duration-700" autoplay loop muted><source src="${feat.video}"></video>
-            <div class="absolute inset-0 bg-gradient-to-r from-black via-transparent to-transparent flex flex-col justify-center p-8 md:p-16">
-                <p class="text-cyan-400 font-bold tracking-[0.3em] text-xs mb-2">FEATURED ASSET</p>
-                <h1 class="text-5xl md:text-7xl font-black uppercase text-white mb-6 leading-none" style="text-shadow: 0 0 30px rgba(0,240,255,0.3)">${feat.title}</h1>
+        <div onclick="openProduct(${feat.id})" class="relative w-full aspect-[2/1] md:aspect-[3/1] bg-[#050010] border border-white/10 mb-12 overflow-hidden cursor-pointer group">
+            <video class="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition duration-700" autoplay loop muted playsinline src="${feat.video}"></video>
+            <div class="absolute inset-0 bg-gradient-to-r from-[#050010] via-transparent to-transparent flex flex-col justify-center p-8 md:p-16">
+                <p class="text-purple-400 font-bold tracking-[0.3em] text-xs mb-2">FEATURED ASSET</p>
+                <h1 class="text-5xl md:text-7xl font-black uppercase text-white mb-6 leading-none" style="text-shadow: 0 0 30px rgba(176,38,255,0.3)">${feat.title}</h1>
                 <button class="btn-prism w-fit bg-white text-black"><span>EXPLORE NOW</span></button>
             </div>
         </div>`;
     }
     if (!posts || posts.length === 0) {
-        html += `<div class="text-center py-32 opacity-50"><i class="fa-solid fa-ghost text-6xl mb-4"></i><p>VOID DETECTED (NO DATA).</p></div>`;
+        html += `<div class="text-center py-32 opacity-50"><i class="fa-solid fa-ghost text-6xl mb-4"></i><p>NINEFALL DETECTED (NO DATA).</p></div>`;
     } else {
         html += `<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">`;
         posts.forEach(post => {
@@ -744,20 +820,29 @@ async function renderProfile(user) {
         { date: "2 Days Ago", text: `🛠️ Patch 1.2 deployed for the Auto-Turret system. Fixed the spline tracking bug and added optimized Niagara VFX.` }
     ];
 
+    let level = profileData.level || 1;
+    let avatarBorderClass = "border-[#333] shadow-[0_0_20px_rgba(176,38,255,0.3)]";
+    if (level > 50) avatarBorderClass = "border-yellow-400 shadow-[0_0_40px_rgba(255,215,0,0.8)]";
+    else if (level > 10) avatarBorderClass = "border-cyan-400 shadow-[0_0_30px_rgba(0,240,255,0.6)]";
+    
+    let bannerHtml = profileData.banner 
+        ? `<div class="absolute inset-0 bg-cover bg-center" style="background-image: url('${profileData.banner}')"></div><div class="absolute inset-0 bg-black/40"></div>`
+        : `<div class="absolute inset-0 bg-gradient-to-br from-cyan-900 via-[#0a0a0a] to-pink-900 opacity-80"></div><div class="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-30"></div>`;
+
     document.getElementById('contentArea').innerHTML = `
         <div class="max-w-5xl mx-auto mt-4 rounded-xl overflow-hidden bg-[#0a0a0a] border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.5)]">
             
-            <div class="h-48 md:h-64 w-full bg-gradient-to-br from-cyan-900 via-[#0a0a0a] to-pink-900 relative overflow-hidden group border-b border-white/10">
-                <div class="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-30"></div>
-                ${isMe ? `<button class="absolute top-4 right-4 bg-black/60 hover:bg-black backdrop-blur text-white px-4 py-2 text-[10px] font-bold uppercase tracking-widest border border-white/20 transition z-10"><i class="fa-solid fa-camera mr-2"></i> Edit Cover</button>` : ''}
+            <div class="h-48 md:h-64 w-full relative overflow-hidden group border-b border-white/10 bg-black">
+                ${bannerHtml}
+                ${isMe ? `<button onclick="openEditProfile()" class="absolute top-4 right-4 bg-black/60 hover:bg-black backdrop-blur text-white px-4 py-2 text-[10px] font-bold uppercase tracking-widest border border-white/20 transition z-10"><i class="fa-solid fa-pen mr-2"></i> Edit Profile</button>` : ''}
             </div>
 
             <div class="px-6 md:px-10 pb-10 relative">
                 
                 <div class="flex justify-between items-end -mt-16 md:-mt-20 mb-6 relative z-10">
-                    <div class="w-32 h-32 md:w-40 md:h-40 rounded-xl overflow-hidden border-4 border-[#0a0a0a] bg-[#111] shadow-[0_0_30px_rgba(0,240,255,0.2)] relative group">
+                    <div class="w-32 h-32 md:w-40 md:h-40 rounded-xl overflow-hidden border-4 bg-[#111] relative group transition-all duration-500 ${avatarBorderClass}">
                         <img src="${profileData.avatar || `https://api.dicebear.com/7.x/shapes/svg?seed=${user}`}" class="w-full h-full object-cover">
-                        ${isMe ? `<div class="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition cursor-pointer backdrop-blur-sm" onclick="openEditProfile()"><i class="fa-solid fa-pen text-white text-xl"></i></div>` : ''}
+                        ${isMe ? `<div class="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition cursor-pointer backdrop-blur-sm" onclick="openEditProfile()"><i class="fa-solid fa-camera text-white text-xl"></i></div>` : ''}
                     </div>
                     
                     <div class="flex gap-3 mb-2">
@@ -779,8 +864,7 @@ async function renderProfile(user) {
                         <p class="text-xs text-cyan-400 font-mono mb-4 tracking-widest">@${user} <span class="text-gray-600 mx-2">|</span> ID: ${profileData.void_id || 'XXX-000'}</p>
                         
                         <div class="flex flex-wrap gap-2 mb-4">
-                            ${profileData.premium_type === 'seller' ? '<span class="bg-red-500/10 border border-red-500/30 px-3 py-1 rounded text-[10px] font-bold text-red-400 uppercase tracking-widest"><i class="fa-solid fa-fire mr-1"></i> Creator</span>' : ''}
-                            ${profileData.premium_type === 'buyer' ? '<span class="bg-green-500/10 border border-green-500/30 px-3 py-1 rounded text-[10px] font-bold text-green-400 uppercase tracking-widest"><i class="fa-solid fa-gem mr-1"></i> Premium</span>' : ''}
+                            ${profileData.is_premium ? '<span class="bg-purple-500/20 border border-purple-500/50 px-3 py-1 rounded text-[10px] font-bold text-purple-400 uppercase tracking-widest"><i class="fa-solid fa-bolt mr-1"></i> Ninefall Pro</span>' : ''}
                             <span class="bg-white/5 border border-white/10 px-3 py-1 rounded text-[10px] font-bold text-gray-300 uppercase tracking-widest">LVL ${profileData.level || 1}</span>
                         </div>
                     </div>
@@ -889,7 +973,7 @@ async function toggleFollow(username) {
 function renderInfo() {
      document.getElementById('contentArea').innerHTML = `
                 <div class="max-w-4xl mx-auto pt-10 pb-20">
-                    <h1 class="text-5xl font-black mb-8 brand-font">ARIZEN ARCHIVES</h1>
+                    <h1 class="text-5xl font-black mb-8 brand-font">NINEFALL ARCHIVES</h1>
                     <p class="text-gray-400 mb-12 border-l-2 border-cyan-400 pl-4">The ultimate knowledge base for Unreal Engine developers. Definitions, Logic, and Implementation.</p>
                     
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -948,7 +1032,7 @@ function renderUpload() {
             document.getElementById('contentArea').innerHTML = `
                 <div class="max-w-2xl mx-auto pt-10">
                     <h1 class="text-4xl font-black mb-8">UPLOAD</h1>
-                    <form action="/upload" method="POST" enctype="multipart/form-data" class="space-y-6">
+                    <form onsubmit="handleUpload(event)" class="space-y-6">
     
     <div class="border border-dashed border-white/20 h-40 flex flex-col items-center justify-center relative hover:bg-white/5 transition cursor-pointer group">
         <i class="fa-solid fa-video text-3xl text-gray-600 mb-2 group-hover:text-cyan-400"></i>
@@ -964,14 +1048,66 @@ function renderUpload() {
 
     <div class="grid grid-cols-2 gap-6">
         <div><p class="text-xs text-gray-500 mb-2 uppercase">Designation</p><input type="text" name="title" class="w-full bg-black border border-white/20 p-4 text-white focus:border-cyan-400 outline-none"></div>
-        <div><p class="text-xs text-gray-500 mb-2 uppercase">Value (INR)</p><input type="number" name="price" class="w-full bg-black border border-white/20 p-4 text-white focus:border-cyan-400 outline-none"></div>
+        <div>
+            <p class="text-xs text-gray-500 mb-2 uppercase">Pricing Tier (INR)</p>
+            <select name="price" class="w-full bg-black border border-white/20 p-4 text-white focus:border-cyan-400 outline-none appearance-none cursor-pointer">
+                <option value="0">Free Blueprint (₹0)</option>
+                <option value="499">Low Tier (₹499)</option>
+                <option value="899">Standard Tier (₹899)</option>
+                <option value="1499">Pro Tier (₹1499)</option>
+                <option value="2999">Ultra Tier (₹2999)</option>
+            </select>
+        </div>
     </div>
     <div><p class="text-xs text-gray-500 mb-2 uppercase">Specs</p><textarea name="desc" class="w-full bg-black border border-white/20 p-4 text-white h-32 focus:border-cyan-400 outline-none"></textarea></div>
     
-    <button type="submit" class="w-full btn-prism bg-white text-black"><span>INITIATE UPLOAD</span></button>
+    <button type="submit" class="w-full btn-prism bg-white text-black mt-6"><span>INITIATE UPLOAD</span></button>
 </form>
                 </div>`;
         }
+        
+async function handleUpload(event) {
+    event.preventDefault(); 
+    
+    const submitBtn = event.target.querySelector('button[type="submit"] span');
+    submitBtn.innerText = "UPLOADING TO NETWORK...";
+    
+    const title = document.querySelector('input[name="title"]').value;
+    const price = document.querySelector('select[name="price"]').value;
+    const desc = document.querySelector('textarea[name="desc"]').value;
+    const videoFile = document.querySelector('input[name="video"]').files[0];
+    const zipFile = document.querySelector('input[name="zip_file"]').files[0];
+
+    const videoPath = `previews/${Date.now()}_${videoFile.name}`;
+    await supabaseClient.storage.from('videos').upload(videoPath, videoFile);
+        
+    const zipPath = `files/${Date.now()}_${zipFile.name}`;
+    await supabaseClient.storage.from('blueprints').upload(zipPath, zipFile);
+
+    const videoUrl = supabaseClient.storage.from('videos').getPublicUrl(videoPath).data.publicUrl;
+    const blueprintUrl = supabaseClient.storage.from('blueprints').getPublicUrl(zipPath).data.publicUrl;
+
+    const { error } = await supabaseClient.from('assets').insert([
+        { 
+            title: title, 
+            price: parseInt(price), 
+            description: desc, 
+            video_url: videoUrl, 
+            blueprint_url: blueprintUrl,
+            seller_id: null 
+        }
+    ]);
+
+    if (!error) {
+        alert("UPLOAD SUCCESSFUL: Asset live on Ninefall Hub.");
+        submitBtn.innerText = "INITIATE UPLOAD";
+        showPage('feed'); 
+    } else {
+        alert("Upload Failed: " + error.message);
+        submitBtn.innerText = "INITIATE UPLOAD";
+    }
+}
+
 async function renderChatHub() {
     const container = document.getElementById('contentArea');
     container.innerHTML = '<div class="pt-20 text-center text-gray-500 font-mono">LOADING CHATS...</div>';
@@ -979,70 +1115,98 @@ async function renderChatHub() {
     const contacts = await res.json();
 
     container.innerHTML = `
-    <div class="max-w-6xl mx-auto pt-6 h-[85vh]">
-        <div class="flex flex-row-reverse h-full bg-[#121212] border border-[#2a2a2a] rounded-lg overflow-hidden shadow-2xl">
+    <div class="max-w-7xl mx-auto pt-6 h-[85vh]">
+        <div class="flex h-full bg-[#0F1115] border border-[#1A1E27] rounded-2xl overflow-hidden shadow-2xl">
             
-            <!-- Right Sidebar (Friends - Epic Games Style) -->
-            <div class="w-1/3 md:w-72 border-l border-[#2a2a2a] flex flex-col bg-[#181818]">
-                <div class="p-4 border-b border-[#2a2a2a] bg-[#181818] flex justify-between items-center">
-                    <h2 class="font-bold text-[10px] text-gray-400 tracking-widest uppercase">
-                        Friends
+            <!-- Left Sidebar (Network Contacts) -->
+            <div class="w-1/4 md:w-72 border-r border-[#1A1E27] flex flex-col bg-[#151821] z-10">
+                <div class="p-6 border-b border-[#1A1E27] flex justify-between items-center bg-[#151821]">
+                    <h2 class="font-bold text-[11px] text-gray-400 tracking-widest uppercase flex items-center gap-2">
+                        <i class="fa-solid fa-network-wired text-cyan-500"></i> Network
                     </h2>
-                    <i class="fa-solid fa-user-plus text-gray-500 hover:text-white cursor-pointer transition"></i>
+                    <i class="fa-solid fa-user-plus text-gray-500 hover:text-cyan-400 cursor-pointer transition"></i>
                 </div>
                 
-                <div class="flex-1 overflow-y-auto py-2">
+                <div class="flex-1 overflow-y-auto py-3 space-y-1 px-2 custom-scrollbar">
                     ${contacts.length > 0 ? contacts.map(c => `
-                        <div onclick="loadFullChat('${c.username}')" class="group flex items-center gap-3 px-4 py-2 cursor-pointer hover:bg-[#282828] transition">
+                        <div onclick="loadFullChat('${c.username}')" class="group flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-[#1A1E27] rounded-xl transition">
                             <div class="relative">
-                                <img src="${c.avatar}" class="w-8 h-8 rounded bg-[#121212]">
-                                <div class="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-[#181818]"></div>
+                                <img src="${c.avatar}" class="w-10 h-10 rounded-full bg-[#0F1115] shadow-md group-hover:shadow-[0_0_15px_rgba(0,240,255,0.2)] transition">
+                                <div class="absolute bottom-0 right-0 w-3 h-3 bg-green-400 rounded-full border-2 border-[#151821] shadow-[0_0_8px_rgba(74,222,128,0.5)]"></div>
                             </div>
                             <div class="flex-1 min-w-0">
                                 <p class="font-bold text-sm text-gray-300 group-hover:text-white transition truncate">${c.username}</p>
-                                <p class="text-[10px] text-gray-500 truncate">Online</p>
+                                <p class="text-[10px] text-green-400 truncate">Active Now</p>
                             </div>
                         </div>
                     `).join('') : `
                         <div class="p-6 text-center">
-                            <p class="text-xs text-gray-500">No chats available.</p>
+                            <p class="text-xs text-gray-500 font-mono">No signals detected.</p>
                         </div>
                     `}
                 </div>
             </div>
 
-            <!-- Left Main Chat -->
-            <div class="flex-1 flex flex-col bg-[#121212] relative">
+            <!-- Center Main Chat -->
+            <div class="flex-1 flex flex-col bg-[#0F1115] relative">
                 
                 <div id="chatPlaceholder" class="absolute inset-0 flex flex-col items-center justify-center z-0 text-center">
-                    <i class="fa-solid fa-message text-4xl text-[#2a2a2a] mb-4"></i>
-                    <p class="text-xs text-gray-600 mt-2 uppercase tracking-widest">Select a friend to message</p>
+                    <div class="w-24 h-24 mb-6 rounded-full border border-[#1A1E27] flex items-center justify-center bg-[#151821] shadow-inner">
+                        <i class="fa-solid fa-satellite-dish text-4xl text-gray-600"></i>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-2 uppercase tracking-widest font-mono">Select a secure channel to initiate comms.</p>
                 </div>
 
                 <div id="activeChatInterface" class="hidden flex-col h-full z-10">
                     
                     <!-- Header -->
-                    <div id="activeChatHeader" class="h-[60px] border-b border-[#2a2a2a] flex items-center justify-between px-6 bg-[#181818]">
+                    <div id="activeChatHeader" class="h-[76px] border-b border-[#1A1E27] flex items-center justify-between px-8 bg-[#0F1115]/80 backdrop-blur-md sticky top-0 z-20">
                         <div class="flex items-center gap-3">
+                            <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse shadow-[0_0_8px_rgba(74,222,128,0.8)]"></div>
                             <div>
-                                <h3 class="font-bold text-sm text-white uppercase tracking-wider" id="fullChatUser">UNKNOWN</h3>
+                                <h3 class="font-bold text-sm text-white tracking-wider" id="fullChatUser">UNKNOWN</h3>
+                                <p class="text-[10px] text-cyan-400 uppercase tracking-widest mt-0.5">Encrypted Connection</p>
                             </div>
+                        </div>
+                        <div class="flex gap-4 text-gray-500">
+                            <i class="fa-solid fa-phone hover:text-white cursor-pointer transition"></i>
+                            <i class="fa-solid fa-video hover:text-white cursor-pointer transition"></i>
+                            <i class="fa-solid fa-ellipsis-vertical hover:text-white cursor-pointer transition"></i>
                         </div>
                     </div>
 
                     <!-- Chat History -->
-                    <div id="fullChatHistory" class="flex-1 overflow-y-auto p-6 bg-[#121212]">
+                    <div id="fullChatHistory" class="flex-1 overflow-y-auto p-8 bg-[#0F1115] custom-scrollbar scroll-smooth">
                     </div>
 
                     <!-- Input Box -->
-                    <div class="p-4 bg-[#121212] border-t border-[#2a2a2a]">
-                        <div class="flex items-center bg-[#181818] rounded px-3 py-2 border border-[#2a2a2a] focus-within:border-gray-500 transition">
-                            <input type="text" id="fullChatInput" class="flex-1 bg-transparent text-sm text-gray-200 outline-none placeholder-gray-600" placeholder="Message...">
-                            <button onclick="sendFullMsg()" class="text-gray-400 hover:text-white px-2"><i class="fa-solid fa-paper-plane"></i></button>
+                    <div class="p-6 bg-[#0F1115] border-t border-[#1A1E27]">
+                        <div class="flex items-center bg-[#151821] rounded-full px-4 py-3 border border-[#1A1E27] focus-within:border-cyan-500/50 focus-within:shadow-[0_0_15px_rgba(0,240,255,0.1)] transition-all duration-300 group">
+                            <button class="text-gray-500 hover:text-cyan-400 px-2 transition"><i class="fa-solid fa-paperclip"></i></button>
+                            <input type="text" id="fullChatInput" class="flex-1 bg-transparent text-sm text-gray-200 outline-none placeholder-gray-600 px-3" placeholder="Transmit secure message...">
+                            <button class="text-gray-500 hover:text-yellow-400 px-2 transition mr-2"><i class="fa-regular fa-face-smile"></i></button>
+                            <button onclick="sendFullMsg()" class="w-8 h-8 rounded-full bg-cyan-500/10 text-cyan-400 flex items-center justify-center hover:bg-cyan-500 hover:text-black transition"><i class="fa-solid fa-paper-plane text-[10px]"></i></button>
                         </div>
                     </div>
                 </div>
+            </div>
 
+            <!-- Right Context Panel (Desktop Only) -->
+            <div class="hidden lg:flex w-72 border-l border-[#1A1E27] flex-col bg-[#151821] z-10 relative">
+                <div class="p-6 border-b border-[#1A1E27] flex items-center justify-center flex-col pt-10">
+                    <div class="w-20 h-20 rounded-full bg-[#0F1115] border border-white/5 mb-4 shadow-lg overflow-hidden relative">
+                        <img id="contextAvatar" src="https://api.dicebear.com/7.x/shapes/svg?seed=Guest" class="w-full h-full object-cover">
+                    </div>
+                    <h3 class="font-bold text-white text-lg tracking-wider" id="contextUser">USER</h3>
+                    <span class="text-[9px] bg-cyan-500/10 text-cyan-400 px-2 py-1 rounded uppercase tracking-widest mt-2 border border-cyan-500/20">Active Dev</span>
+                </div>
+                <div class="p-6 flex-1">
+                    <h4 class="text-[10px] text-gray-500 uppercase tracking-widest mb-3 font-bold">Activity</h4>
+                    <div class="bg-[#0F1115] border border-[#1A1E27] rounded-xl p-4 text-center group cursor-pointer hover:border-cyan-500/30 transition">
+                        <i class="fa-solid fa-cube text-2xl text-gray-600 group-hover:text-cyan-400 transition mb-2"></i>
+                        <p class="text-xs text-gray-400 font-mono group-hover:text-gray-200">Browsing Ninefall Hub</p>
+                    </div>
+                </div>
             </div>
         </div>
     </div>`;
@@ -1068,22 +1232,40 @@ async function loadFullChat(username, avatarUrl) {
     }
     
     document.getElementById('fullChatUser').innerText = username;
+    document.getElementById('contextUser').innerText = username;
+    if(avatarUrl) document.getElementById('contextAvatar').src = avatarUrl;
 
     const res = await fetch(`/api/chat/history/${username}?t=${Date.now()}`);
     const msgs = await res.json();
     
     const area = document.getElementById('fullChatHistory');
-    area.innerHTML = msgs.map(m => `
-        <div class="mb-4">
-            <div class="flex items-baseline gap-2 mb-1">
-                <span class="font-bold text-[11px] uppercase tracking-wider ${m.sender === currentUser ? 'text-cyan-400' : 'text-gray-400'}">${m.sender}</span>
-                <span class="text-[9px] text-gray-600">${m.time}</span>
-            </div>
-            <div class="text-sm text-gray-300">
-                ${m.content}
-            </div>
-        </div>
-    `).join('');
+    area.innerHTML = msgs.map(m => {
+        const isMe = m.sender === currentUser;
+        if(isMe) {
+            return `
+            <div class="flex flex-col items-end w-full animate-fade-in-up mb-6">
+                <div class="flex items-center gap-2 mb-1">
+                    <span class="text-[9px] text-gray-500">${m.time}</span>
+                    <span class="font-bold text-xs text-cyan-400">You</span>
+                </div>
+                <div class="bg-cyan-500/10 border border-cyan-500/20 text-cyan-50 text-sm px-4 py-3 rounded-2xl rounded-tr-sm max-w-[85%] shadow-[0_4px_20px_rgba(0,240,255,0.05)] backdrop-blur-md">
+                    ${m.content}
+                </div>
+            </div>`;
+        } else {
+            return `
+            <div class="flex flex-col items-start w-full animate-fade-in-up mb-6">
+                <div class="flex items-center gap-2 mb-2 pl-1">
+                    <span class="font-bold text-xs text-white">${m.sender}</span>
+                    <span class="text-[9px] bg-[#1A1E27] border border-white/5 text-gray-400 px-2 py-0.5 rounded uppercase tracking-widest font-bold">Network User</span>
+                    <span class="text-[9px] text-gray-500">${m.time}</span>
+                </div>
+                <div class="bg-[#151821] border border-[#1A1E27] text-gray-200 text-sm px-4 py-3 rounded-2xl rounded-tl-sm max-w-[85%] shadow-lg">
+                    ${m.content}
+                </div>
+            </div>`;
+        }
+    }).join('');
     area.scrollTop = area.scrollHeight;
 
     const chatInput = document.getElementById('fullChatInput');
@@ -1161,20 +1343,9 @@ async function sendFullMsg() {
             document.getElementById('modalPrice').innerText = "₹" + post.price;
             document.getElementById('modalSold').innerText = post.sold || 0;
             document.getElementById('modalDesc').innerText = post.desc || "No description available.";
+            if(document.getElementById('modalCreatorName')) document.getElementById('modalCreatorName').innerText = post.user;
+            if(document.getElementById('modalCreatorAvatar')) document.getElementById('modalCreatorAvatar').src = post.author_avatar || `https://api.dicebear.com/7.x/shapes/svg?seed=${post.user}`;
 
-            // Reset Phoenix Panel
-            const phxPanel = document.getElementById('phoenixPanel');
-            if (phxPanel) phxPanel.classList.add('hidden');
-            const phxOut = document.getElementById('phoenixOutput');
-            if (phxOut) {
-                phxOut.classList.add('hidden');
-                phxOut.innerText = "";
-            }
-            if (document.getElementById('phxType')) document.getElementById('phxType').value = "";
-            if (document.getElementById('phxSpeed')) document.getElementById('phxSpeed').value = "";
-            if (document.getElementById('phxPoly')) document.getElementById('phxPoly').value = "";
-            if (document.getElementById('phxBuoyancy')) document.getElementById('phxBuoyancy').value = "";
-            
             const postReviews = post.reviews || [];
             document.getElementById('modalReviews').innerHTML = postReviews.length ? 
                 postReviews.map(r => `<div class="bg-white/5 p-3"><p class="text-cyan-400 font-bold text-xs">${r.user}</p><p class="text-xs text-gray-300">${r.text}</p></div>`).join('')
@@ -1188,52 +1359,8 @@ async function sendFullMsg() {
                 if(savedItems.includes(id)) savedItems = savedItems.filter(i=>i!==id); else savedItems.push(id);
                 openProduct(id); 
             };
-            document.getElementById('productModal').style.display = 'flex';
-        }
-
-        function togglePhoenixPanel() {
-            document.getElementById('phoenixPanel').classList.toggle('hidden');
-        }
-
-        async function runPhoenixAnalysis() {
-            const btn = document.getElementById('phxRunBtn');
-            const out = document.getElementById('phoenixOutput');
-            const title = document.getElementById('modalTitle').innerText;
             
-            const requestData = {
-                "asset_name": title,
-                "asset_type": document.getElementById('phxType').value || "generic",
-                "max_speed": parseInt(document.getElementById('phxSpeed').value) || 0,
-                "poly_count": parseInt(document.getElementById('phxPoly').value) || 0,
-                "buoyancy_force": parseFloat(document.getElementById('phxBuoyancy').value) || 0.0
-            };
-
-            btn.innerText = "ANALYZING...";
-            out.classList.add('hidden');
-            out.classList.remove('text-pink-500');
-            out.classList.add('text-cyan-400');
-            
-            try {
-                const response = await fetch('https://phoenix-vpfq.onrender.com/analyze-asset', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(requestData)
-                });
-                
-                if (!response.ok) {
-                    throw new Error(`API Error: ${response.status}`);
-                }
-                
-                const data = await response.json();
-                out.innerText = typeof data === 'object' ? JSON.stringify(data, null, 2) : data;
-                out.classList.remove('hidden');
-            } catch (e) {
-                out.classList.remove('text-cyan-400');
-                out.classList.add('text-pink-500');
-                out.innerText = "ERROR CONNECTING TO PHOENIX ENGINE.\nDetails: " + e.message + "\n\n(Ensure your Phoenix Server is awake, and uses 'flask_cors' to allow connections)";
-                out.classList.remove('hidden');
-            }
-            btn.innerText = "RUN SIMULATION";
+            document.getElementById('productModal').classList.add('active');
         }
 
         async function postReview() {
@@ -1266,8 +1393,33 @@ async function sendFullMsg() {
             }
         }
 
+        let currentProPlan = 'monthly';
+        function setProPricing(plan) {
+            currentProPlan = plan;
+            const btnM = document.getElementById('toggleMonthly');
+            const btnY = document.getElementById('toggleYearly');
+            const price = document.getElementById('proPriceDisplay');
+            const billed = document.getElementById('proBilledDisplay');
+
+            if(plan === 'monthly') {
+                btnM.classList.add('bg-purple-500', 'text-white'); btnM.classList.remove('text-gray-500');
+                btnY.classList.remove('bg-purple-500', 'text-white'); btnY.classList.add('text-gray-500');
+                price.innerHTML = `₹199<span class="text-sm text-purple-400 font-bold ml-1">/mo</span>`;
+                billed.innerText = "Billed Monthly";
+            } else {
+                btnY.classList.add('bg-purple-500', 'text-white'); btnY.classList.remove('text-gray-500');
+                btnM.classList.remove('bg-purple-500', 'text-white'); btnM.classList.add('text-gray-500');
+                price.innerHTML = `₹1499<span class="text-sm text-purple-400 font-bold ml-1">/yr</span>`;
+                billed.innerText = "Billed Yearly (Save 37%)";
+            }
+        }
+        function triggerProPayment() {
+            const amount = currentProPlan === 'monthly' ? 199 : 1499;
+            openPaymentUI(amount, `Ninefall Pro (${currentProPlan.toUpperCase()})`, 'pro');
+        }
+
         function openPaymentUI(price, title, p_type=null) {
-            if(!isLoggedIn) { document.getElementById('authModal').style.display = 'flex'; return; }
+            if(!isLoggedIn) { document.getElementById('authModal').classList.add('active'); return; }
             activePremiumUpgradeType = p_type;
             document.getElementById('payTitle').innerText = title;
             document.getElementById('payPrice').innerText = "₹" + price;
@@ -1284,25 +1436,25 @@ async function sendFullMsg() {
                     loadData();
                 }, 1500);
             };
-            document.getElementById('paymentModal').style.display = 'flex';
+            document.getElementById('paymentModal').classList.add('active');
         }
  
 function renderMiniGrid(posts) {
-    if (!posts || posts.length === 0) return '<div class="p-8 text-center border border-white/10 text-gray-600 font-mono text-xs">VOID DETECTED (NO UPLOADS)</div>';
+    if (!posts || posts.length === 0) return '<div class="p-8 text-center border border-white/10 text-gray-600 font-mono text-xs mt-4">VOID DETECTED (NO UPLOADS)</div>';
 
     return `
-    <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+    <div class="grid grid-cols-3 gap-1 mt-4">
         ${posts.map(p => `
-            <div class="stitch-card aspect-video cursor-pointer group relative border border-white/10" onclick="openProduct(${p.id})">
-                <video src="${p.video}" class="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition" loop muted playsinline onmouseover="this.play()" onmouseout="this.pause()"></video>
-                <div class="absolute bottom-2 left-2 bg-black/80 px-2 py-1 text-[9px] font-bold text-cyan-400 border border-cyan-500/30">
-                    ID: ${p.id}
+            <div class="aspect-square cursor-pointer group relative bg-[#050505] overflow-hidden border border-white/5" onclick="openProduct(${p.id})">
+                <video src="${p.video}" class="w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition duration-500" loop muted playsinline onmouseover="this.play()" onmouseout="this.pause()"></video>
+                <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition duration-300 flex items-center justify-center pointer-events-none">
+                    <i class="fa-solid fa-play text-white text-3xl drop-shadow-[0_0_15px_rgba(255,255,255,0.5)]"></i>
                 </div>
             </div>
         `).join('')}
     </div>`;
 }
-        function showPremiumModal() { document.getElementById('premiumModal').style.display='flex'; }
+        function showPremiumModal() { document.getElementById('premiumModal').classList.add('active'); }
       
 function applyFilters() {
     const query = document.getElementById('searchBox').value.toLowerCase();
@@ -1315,17 +1467,19 @@ function applyFilters() {
         
         let matchesCategory = true;
         if (category !== 'all') {
-            if (category === 'horror') matchesCategory = content.includes('horror') || content.includes('scary');
-            else if (category === 'vehicle') matchesCategory = content.includes('car') || content.includes('drift');
-            else if (category === 'weapon') matchesCategory = content.includes('gun') || content.includes('weapon');
-            else if (category === 'system') matchesCategory = content.includes('system') || content.includes('ai');
+            if (category === 'vehicles') matchesCategory = content.includes('car') || content.includes('drift') || content.includes('vehicle') || content.includes('drone') || content.includes('drive');
+            else if (category === 'house') matchesCategory = content.includes('house') || content.includes('door') || content.includes('building') || content.includes('map') || content.includes('architecture');
+            else if (category === 'human') matchesCategory = content.includes('human') || content.includes('character') || content.includes('npc') || content.includes('player') || content.includes('parkour');
+            else if (category === 'weapons') matchesCategory = content.includes('gun') || content.includes('weapon') || content.includes('fps') || content.includes('combat') || content.includes('sword');
+            else if (category === 'systems') matchesCategory = content.includes('system') || content.includes('ai') || content.includes('ui') || content.includes('chat') || content.includes('inventory');
             else matchesCategory = content.includes(category);
         }
 
         return matchesSearch && matchesCategory;
     });
 
-    if (sort === 'low') filteredPosts.sort((a, b) => a.price - b.price);
+    if (sort === 'bestseller') filteredPosts.sort((a, b) => (b.sold || 0) - (a.sold || 0));
+    else if (sort === 'low') filteredPosts.sort((a, b) => a.price - b.price);
     else if (sort === 'high') filteredPosts.sort((a, b) => b.price - a.price);
     else filteredPosts.sort((a, b) => b.id - a.id);
 
@@ -1379,7 +1533,7 @@ function openFollowModal(title, userList) {
         </div>`).join('');
         
     document.getElementById('followModalList').innerHTML = listHtml;
-    modal.style.display = 'flex';
+    modal.classList.add('active');
 }
 
 document.querySelector('.fa-bell').onclick = toggleNotifs;
@@ -1403,7 +1557,7 @@ document.querySelector('.fa-bell').onclick = toggleNotifs;
 </div>
 
 <div id="notifBackdrop" onclick="toggleNotifs()" class="fixed inset-0 bg-black/50 z-[55] hidden backdrop-blur-sm transition-opacity"></div>
-<div id="editProfileModal" class="modal-overlay hidden">
+<div id="editProfileModal" class="modal-overlay">
     <div class="bg-[#0a0a0a] border border-[#222] rounded-xl p-8 max-w-md w-full relative shadow-[0_0_40px_rgba(0,240,255,0.05)] overflow-hidden">
         <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-cyan-400 via-pink-500 to-yellow-500"></div>
         <button onclick="closeModal('editProfileModal')" class="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 transition"><i class="fa-solid fa-xmark"></i></button>
@@ -1420,6 +1574,10 @@ document.querySelector('.fa-bell').onclick = toggleNotifs;
                     <label class="text-[10px] text-gray-400 uppercase tracking-widest mb-1.5 block font-bold flex items-center gap-2"><i class="fa-solid fa-camera text-cyan-500"></i> Avatar</label>
                     <input type="file" id="editAvatar" accept="image/*" class="w-full bg-[#111] border border-white/10 rounded-lg p-2 text-gray-400 text-xs outline-none cursor-pointer file:mr-4 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:font-bold file:bg-cyan-500/20 file:text-cyan-400 hover:file:bg-cyan-500/30">
                 </div>
+            <div class="flex-1">
+                <label class="text-[10px] text-gray-400 uppercase tracking-widest mb-1.5 block font-bold flex items-center gap-2"><i class="fa-solid fa-image text-pink-500"></i> Banner</label>
+                <input type="file" id="editBanner" accept="image/*" class="w-full bg-[#111] border border-white/10 rounded-lg p-2 text-gray-400 text-xs outline-none cursor-pointer file:mr-4 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:font-bold file:bg-pink-500/20 file:text-pink-400 hover:file:bg-pink-500/30">
+            </div>
             </div>
 
             <div>
@@ -1431,7 +1589,7 @@ document.querySelector('.fa-bell').onclick = toggleNotifs;
                 <input id="editUsername" class="w-full bg-[#111] border border-white/10 rounded-lg p-3 text-white text-sm focus:border-cyan-400 focus:bg-black outline-none transition" placeholder="New Username">
             </div>
             <div>
-                <label class="text-[10px] text-gray-400 uppercase tracking-widest mb-1.5 block font-bold flex items-center gap-2"><i class="fa-solid fa-fingerprint text-pink-500"></i> Void ID (Immutable)</label>
+                <label class="text-[10px] text-gray-400 uppercase tracking-widest mb-1.5 block font-bold flex items-center gap-2"><i class="fa-solid fa-fingerprint text-pink-500"></i> Ninefall ID (Immutable)</label>
                 <input id="editVoidId" disabled class="w-full bg-[#0a0a0a] border border-white/5 rounded-lg p-3 text-gray-500 text-sm outline-none cursor-not-allowed opacity-70 uppercase">
             </div>
             <div>
@@ -1447,7 +1605,7 @@ document.querySelector('.fa-bell').onclick = toggleNotifs;
     </div>
 </div>
 
-<div id="followModal" class="modal-overlay hidden">
+<div id="followModal" class="modal-overlay">
     <div class="bg-[#121212] border border-[#2a2a2a] rounded-xl p-6 max-w-sm w-full relative shadow-2xl overflow-hidden">
         <button onclick="closeModal('followModal')" class="absolute top-4 right-4 text-gray-500 hover:text-white transition"><i class="fa-solid fa-xmark text-lg"></i></button>
         <h2 id="followModalTitle" class="text-lg font-black uppercase text-white mb-4 border-b border-[#2a2a2a] pb-2">List</h2>

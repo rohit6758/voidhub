@@ -5,13 +5,14 @@ from flask_login import LoginManager, UserMixin, login_user, login_required, log
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from datetime import datetime
+import json
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'titan-epic-key-2026'
 
 # DATABASE CONFIG
 # Look for a hidden environment variable, otherwise use a safe local fallback
-db_url = os.environ.get('DATABASE_URL', 'sqlite:///voidhub.db')
+db_url = os.environ.get('DATABASE_URL', 'sqlite:///ninefallhub.db')
 if db_url.startswith("postgres://"):
     db_url = db_url.replace("postgres://", "postgresql://", 1)
 app.config['SQLALCHEMY_DATABASE_URI'] = db_url
@@ -42,6 +43,11 @@ def get_avatar_url(user):
         return url_for('static', filename='profiles/' + user.avatar_file)
     return f"https://api.dicebear.com/7.x/shapes/svg?seed={user.username}"
 
+def get_banner_url(user):
+    if user.banner_file and user.banner_file != 'default_banner.jpg':
+        return url_for('static', filename='profiles/' + user.banner_file)
+    return ""
+
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(100), unique=True, nullable=False)
@@ -54,8 +60,9 @@ class User(UserMixin, db.Model):
     
     # Profile Data
     avatar_file = db.Column(db.String(100), default='default_avatar.png')
-    bio = db.Column(db.String(500), default="Certified Void Hub Developer.")
-    void_id = db.Column(db.String(100), unique=True, default=lambda: f"VOID-{os.urandom(2).hex().upper()}")
+    banner_file = db.Column(db.String(100), default='default_banner.jpg')
+    bio = db.Column(db.String(500), default="Certified Ninefall Hub Developer.")
+    void_id = db.Column(db.String(100), unique=True, default=lambda: f"NH-{os.urandom(2).hex().upper()}")
     
     # Relationships
     posts = db.relationship('Post', backref='author', lazy=True)
@@ -190,6 +197,7 @@ def get_user_profile(username):
         'is_premium': user.is_premium,
         'premium_type': user.premium_type,
         'avatar': get_avatar_url(user),
+        'banner': get_banner_url(user),
         'sales': sum([p.sold_count for p in user.posts]),
         'followers': followers_list,
         'following': following_list
@@ -205,7 +213,7 @@ def update_profile():
     
     if new_username and new_username != current_user.username:
         if User.query.filter_by(username=new_username).first():
-            return jsonify({'status': 'error', 'message': 'Codename already taken.'})
+            return jsonify({'status': 'error', 'message': 'Username already taken.'})
         current_user.username = new_username
         
     if not os.path.exists(os.path.join(app.config['UPLOAD_FOLDER'], 'profiles')):
@@ -217,6 +225,13 @@ def update_profile():
             filename = secure_filename(f"avatar_{current_user.id}_{avatar.filename}")
             avatar.save(os.path.join(app.config['UPLOAD_FOLDER'], 'profiles', filename))
             current_user.avatar_file = filename
+
+    if 'banner' in request.files:
+        banner = request.files['banner']
+        if banner.filename:
+            filename = secure_filename(f"banner_{current_user.id}_{banner.filename}")
+            banner.save(os.path.join(app.config['UPLOAD_FOLDER'], 'profiles', filename))
+            current_user.banner_file = filename
 
     current_user.display_name = new_display_name or current_user.display_name
     current_user.bio = data.get('bio', current_user.bio)
@@ -325,7 +340,6 @@ def upload_file():
             filename=vid_filename, 
             product_file=zip_filename,
             price=request.form.get('price'), 
-            desc=request.form.get('desc'), 
             author=current_user
         )
         db.session.add(new_post)
@@ -372,8 +386,9 @@ def buy_post(post_id):
 @app.route('/api/premium/upgrade/<string:p_type>', methods=['POST'])
 @login_required
 def upgrade_premium(p_type):
-    if p_type in ['buyer', 'seller']:
+    if p_type in ['pro', 'buyer', 'seller']:
         current_user.premium_type = p_type
+        current_user.is_premium = True
         db.session.commit()
     return jsonify({'status': 'success', 'type': current_user.premium_type})
 
